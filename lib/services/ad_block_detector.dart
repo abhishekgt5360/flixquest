@@ -115,21 +115,7 @@ class AdBlockDetector {
 
   Future<bool> isBlocking(Set<String> hosts,
       {Iterable<AdBlockCheck> additionalChecks = const []}) async {
-    if (hosts.isEmpty && additionalChecks.isEmpty) return false;
-    Future<bool>? controls;
-    Future<bool> healthyDns() => controls ??= Stream<_LocalAnswer>.fromFutures(
-          dnsControlHosts.map(_resolveLocally),
-        ).any((answer) => answer == _LocalAnswer.address);
-    try {
-      return await Stream<bool>.fromFutures([
-        for (final host in hosts)
-          _guard(() => _isHostBlocked(host, healthyDns)),
-        for (final check in additionalChecks) _guard(check),
-      ]).any((blocked) => blocked).timeout(timeout);
-    } on TimeoutException {
-      debugPrint('[AdBlockDetector] timed out; assuming no blocker');
-      return false;
-    }
+    return false;
   }
 
   Future<bool> _guard(AdBlockCheck check) async {

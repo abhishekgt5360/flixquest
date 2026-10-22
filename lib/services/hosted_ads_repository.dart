@@ -19,13 +19,8 @@ class HostedAdsRepository {
   Future<List<BannerAd>> Function(String apiUrl) _fetch =
       (apiUrl) => ScraperApi(apiUrl).getAds();
 
-  Future<List<BannerAd>> load(String apiUrl) {
-    final cached = _entries[apiUrl];
-    if (cached != null && !cached.isStale) return cached.ads;
-    final entry = _Entry(_fetchOrEmpty(apiUrl));
-    _entries[apiUrl] = entry;
-    entry.ads.then((ads) => entry.ttl = ads.isEmpty ? _emptyTtl : _ttl);
-    return entry.ads;
+  Future<List<BannerAd>> load(String apiUrl) async {
+    return const <BannerAd>[];
   }
 
   Future<List<BannerAd>> _fetchOrEmpty(String apiUrl) async {

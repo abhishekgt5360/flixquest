@@ -53,25 +53,22 @@ class AppDependencyProvider extends ChangeNotifier {
 
   /// Asks viewers to turn off their ad blocker when Play or Download starts.
   bool _adBlockGateEnabled = false;
-  bool get adBlockGateEnabled => _adBlockGateEnabled;
+  bool get adBlockGateEnabled => false;
 
   Map<String, BannerDisplayConfig> _bannerConfigs = const {};
 
   BannerDisplayConfig bannerConfigFor(String key) =>
       _bannerConfigs[key] ?? BannerDisplayConfig(key: key);
 
-  bool isBannerEnabled(String key, String placement) {
-    final config = bannerConfigFor(key);
-    return config.enabled && config.appliesTo(placement);
-  }
+  bool isBannerEnabled(String key, String placement) => false;
 
   void setBannerConfigs(Map<String, BannerDisplayConfig> configs) {
     _bannerConfigs = Map.unmodifiable(configs);
     notifyListeners();
   }
 
-  String _bannerAdNetwork = 'adsterra';
-  String get bannerAdNetwork => _bannerAdNetwork;
+  String _bannerAdNetwork = 'none';
+  String get bannerAdNetwork => 'none';
 
   Map<String, String> _bannerAdNetworkOverrides = const {};
 
@@ -84,24 +81,12 @@ class AppDependencyProvider extends ChangeNotifier {
   /// A slot can migrate independently. TV uses only its own `_tv` override.
   /// The global `none` value remains the emergency switch for every banner.
   BannerAdsConfig? bannerAdsForPlacement(String placement,
-      {bool television = false}) {
-    if (_bannerAdNetwork == 'none') return null;
-    final name = television ? '${placement}_tv' : placement;
-    final override = _bannerAdNetworkOverrides[name];
-    final network =
-        override == null ? bannerNetwork : AdNetwork.parse(override);
-    if (network == null) return null;
-    final config = bannerAdsFor(network);
-    return config.enabled && (!television || config.tvEnabled) ? config : null;
-  }
+      {bool television = false}) => null;
 
   /// The network `banner_ad_network` selects; null for `none` and unknown
   /// values. Names published before Adsterra (`native`, `unity`, `startio`)
   /// still select Adsterra.
-  AdNetwork? get bannerNetwork =>
-      const {'native', 'unity', 'startio'}.contains(_bannerAdNetwork)
-          ? AdNetwork.adsterra
-          : AdNetwork.parse(_bannerAdNetwork);
+  AdNetwork? get bannerNetwork => null;
 
   /// Every network's banner catalog, whichever one is selected.
   Map<AdNetwork, BannerAdsConfig> _bannerAds = const {};
@@ -110,26 +95,10 @@ class AppDependencyProvider extends ChangeNotifier {
       _bannerAds[network] ?? BannerAdsConfig(network: network);
 
   /// The selected network's catalog, once its own switch is on.
-  BannerAdsConfig? get activeBannerAds {
-    final network = bannerNetwork;
-    if (network == null) return null;
-    final config = bannerAdsFor(network);
-    return config.enabled ? config : null;
-  }
+  BannerAdsConfig? get activeBannerAds => null;
 
   /// Selected catalogs, including networks serving individual slot overrides.
-  Iterable<BannerAdsConfig> get activeBannerCatalogs sync* {
-    if (_bannerAdNetwork == 'none') return;
-    final networks = {
-      bannerNetwork,
-      ..._bannerAdNetworkOverrides.values.map(AdNetwork.parse),
-    };
-    for (final network in networks) {
-      if (network == null) continue;
-      final catalog = bannerAdsFor(network);
-      if (catalog.enabled) yield catalog;
-    }
-  }
+  Iterable<BannerAdsConfig> get activeBannerCatalogs sync* {}
 
   AdsterraPlaybackAdsConfig _adsterraPlaybackAds =
       const AdsterraPlaybackAdsConfig();
@@ -151,24 +120,20 @@ class AppDependencyProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Which network serves the stream-found popup; null serves none. The
-  /// Social Bar before the loader stays with Adsterra.
-  AdNetwork? _playbackPopunderNetwork = AdNetwork.adsterra;
-  AdNetwork? get playbackPopunderNetwork => _playbackPopunderNetwork;
+  /// Which network serves the stream-found popup; null serves none.
+  AdNetwork? _playbackPopunderNetwork;
+  AdNetwork? get playbackPopunderNetwork => null;
 
   void setPlaybackPopunderNetwork(AdNetwork? network) {
-    if (_playbackPopunderNetwork == network) return;
-    _playbackPopunderNetwork = network;
+    if (_playbackPopunderNetwork == null) return;
+    _playbackPopunderNetwork = null;
     notifyListeners();
   }
 
-  /// Which network serves the popup on Android TV; null serves none. Follows
-  /// [playbackPopunderNetwork] until TV gets its own.
+  /// Which network serves the popup on Android TV; null serves none.
   AdNetwork? _tvPlaybackPopunderNetwork;
-  bool _tvFollowsPlaybackPopunderNetwork = true;
-  AdNetwork? get tvPlaybackPopunderNetwork => _tvFollowsPlaybackPopunderNetwork
-      ? _playbackPopunderNetwork
-      : _tvPlaybackPopunderNetwork;
+  bool _tvFollowsPlaybackPopunderNetwork = false;
+  AdNetwork? get tvPlaybackPopunderNetwork => null;
 
   void setTvPlaybackPopunderNetwork(AdNetwork? network,
       {bool followMobile = false}) {
@@ -303,17 +268,17 @@ class AppDependencyProvider extends ChangeNotifier {
       );
 
   VastPrerollConfig _vastPreroll = const VastPrerollConfig();
-  VastPrerollConfig get vastPreroll => _vastPreroll;
+  VastPrerollConfig get vastPreroll => const VastPrerollConfig();
 
   void setVastPrerollConfig(VastPrerollConfig config) {
     if (config == _vastPreroll) return;
-    _vastPreroll = config;
+    _vastPreroll = const VastPrerollConfig();
     notifyListeners();
   }
 
   // Only the selected network's own switch and catalog can activate network
   // requests.
-  bool get isNetworkBannerActive => activeBannerAds != null;
+  bool get isNetworkBannerActive => false;
 
   void setBannerAdsConfig(BannerAdsConfig config) {
     if (bannerAdsFor(config.network) == config) return;
@@ -321,21 +286,19 @@ class AppDependencyProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  HostedBannerMode _hostedBannerMode = HostedBannerMode.stack;
-  HostedBannerMode get hostedBannerMode => _hostedBannerMode;
-  bool get isHostedBannerActive =>
-      _hostedBannerMode != HostedBannerMode.off && _bannerAdNetwork != 'none';
+  HostedBannerMode _hostedBannerMode = HostedBannerMode.off;
+  HostedBannerMode get hostedBannerMode => HostedBannerMode.off;
+  bool get isHostedBannerActive => false;
 
   void setHostedBannerMode(HostedBannerMode mode) {
-    if (_hostedBannerMode == mode) return;
-    _hostedBannerMode = mode;
+    if (_hostedBannerMode == HostedBannerMode.off) return;
+    _hostedBannerMode = HostedBannerMode.off;
     notifyListeners();
   }
 
   void setBannerAdNetwork(String network) {
-    final sanitized = network.trim().toLowerCase();
-    if (_bannerAdNetwork == sanitized) return;
-    _bannerAdNetwork = sanitized;
+    if (_bannerAdNetwork == 'none') return;
+    _bannerAdNetwork = 'none';
     notifyListeners();
   }
 

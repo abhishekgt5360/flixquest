@@ -241,77 +241,26 @@ class AppRemoteConfig {
     provider.displayWatchNowButton = remoteConfig.getBool(enableWatchNowKey);
     provider.displayDownloadButton = remoteConfig.getBool(enableDownloadKey);
     provider.displayLiveTV = _resolveLiveTv(remoteConfig);
-    provider.adBlockGateEnabled = remoteConfig.getBool(adBlockGateEnabledKey);
-    provider.setBannerConfigs(
-        parseBannerConfigs(remoteConfig.getString(bannersKey)));
+    provider.adBlockGateEnabled = false;
+    provider.setBannerConfigs(const {});
+    provider.setBannerAdNetwork('none');
+    provider.setBannerAdNetworkOverrides(const {});
+    provider.setHostedBannerMode(HostedBannerMode.off);
 
-    final bannerSelection = resolveBannerNetworkSelection(
-      remoteConfig.getString(bannerAdNetworkKey),
-      remoteConfig.getString(bannerAdNetworkTestKey),
-    );
-    provider.setBannerAdNetwork(bannerSelection.network);
-    provider.setBannerAdNetworkOverrides(bannerSelection.testMode
-        ? const {}
-        : parseBannerNetworkOverrides(
-            remoteConfig.getString(bannerAdNetworkOverridesKey)));
-
-    provider.setHostedBannerMode(
-      bannerSelection.testMode
-          ? HostedBannerMode.off
-          : HostedBannerMode.parse(remoteConfig.getString(hostedBannerModeKey)),
-    );
-
-    // Every network's catalog is kept; `banner_ad_network` picks the live one.
-    for (final (network, enabledKey, tvKey, catalogKey) in [
-      (
-        AdNetwork.adsterra,
-        adsterraBannerEnabledKey,
-        adsterraTvEnabledKey,
-        adsterraBannersKey
-      ),
-      (
-        AdNetwork.clickadu,
-        clickaduBannerEnabledKey,
-        clickaduTvEnabledKey,
-        clickaduBannersKey
-      ),
-      (
-        AdNetwork.exoclick,
-        exoclickBannerEnabledKey,
-        exoclickTvEnabledKey,
-        exoclickBannersKey
-      ),
-    ]) {
-      final testingNetwork =
-          bannerSelection.testMode && bannerSelection.network == network.name;
-      provider.setBannerAdsConfig(BannerAdsConfig.parse(
-        remoteConfig.getString(catalogKey),
-        network: network,
-        enabled: testingNetwork || _remoteBool(remoteConfig, enabledKey),
-        tvEnabled: testingNetwork || _remoteBool(remoteConfig, tvKey),
-      ));
+    for (final network in AdNetwork.values) {
+      provider.setBannerAdsConfig(BannerAdsConfig(network: network));
     }
 
     final instancesRaw = remoteConfig.getString(flixquestApiInstancesKey);
-    final playbackEnabled = remoteConfig.getValue(adsterraPlaybackEnabledKey);
-    provider.setAdsterraPlaybackAdsConfig(AdsterraPlaybackAdsConfig.parse(
-      remoteConfig.getString(adsterraPlaybackAdsKey),
-      enabled: playbackEnabled.source == ValueSource.valueRemote &&
-          playbackEnabled.asBool(),
-    ));
-    for (final (network, enabledKey, catalogKey) in [
-      (AdNetwork.clickadu, clickaduPlaybackEnabledKey, clickaduPlaybackAdsKey),
-      (AdNetwork.monetag, monetagPlaybackEnabledKey, monetagPlaybackAdsKey),
-      (AdNetwork.exoclick, exoclickPlaybackEnabledKey, exoclickPlaybackAdsKey),
+    provider.setAdsterraPlaybackAdsConfig(const AdsterraPlaybackAdsConfig());
+    for (final network in [
+      AdNetwork.clickadu,
+      AdNetwork.monetag,
+      AdNetwork.exoclick,
     ]) {
-      provider.setPopunderAdsConfig(PopunderAdsConfig.parse(
-        remoteConfig.getString(catalogKey),
-        network: network,
-        enabled: _remoteBool(remoteConfig, enabledKey),
-      ));
+      provider.setPopunderAdsConfig(PopunderAdsConfig(network, enabled: false));
     }
-    provider.setPlaybackPopunderNetwork(
-        AdNetwork.parse(remoteConfig.getString(playbackPopunderNetworkKey)));
+    provider.setPlaybackPopunderNetwork(null);
     provider.setPlaybackPopupFrequencyMinutes(
         remoteConfig.getValue(playbackPopupFrequencyMinutesKey).asInt());
     provider.setPlaybackPopupBrowserBehavior(
@@ -344,67 +293,9 @@ class AppRemoteConfig {
     );
     // Android TV follows the phone selector and interval until its own keys
     // are published.
-    final tvNetwork = remoteConfig.getValue(tvPlaybackPopunderNetworkKey);
-    final tvNetworkPublished = tvNetwork.source == ValueSource.valueRemote;
-    provider.setTvPlaybackPopunderNetwork(
-      tvNetworkPublished ? AdNetwork.parse(tvNetwork.asString()) : null,
-      followMobile: !tvNetworkPublished,
-    );
-    final tvFrequency =
-        remoteConfig.getValue(tvPlaybackPopupFrequencyMinutesKey);
-    provider.setTvPlaybackPopupFrequencyMinutes(
-        tvFrequency.source == ValueSource.valueRemote
-            ? tvFrequency.asInt()
-            : null);
-    if (kDebugMode) {
-      final network = provider.playbackPopunderNetwork;
-      final catalogKey = switch (network) {
-        AdNetwork.adsterra => adsterraPlaybackAdsKey,
-        AdNetwork.clickadu => clickaduPlaybackAdsKey,
-        AdNetwork.monetag => monetagPlaybackAdsKey,
-        AdNetwork.exoclick => exoclickPlaybackAdsKey,
-        null => null,
-      };
-      final placement = network == AdNetwork.adsterra
-          ? provider.adsterraPlaybackAds.forStage(PlaybackAdStage.streamFound)
-          : network == null
-              ? null
-              : provider.popunderAdsFor(network).activePopunder;
-      final enabled = network == AdNetwork.adsterra
-          ? provider.adsterraPlaybackAds.enabled
-          : network != null && provider.popunderAdsFor(network).enabled;
-      final target =
-          placement?.pageUrl ?? placement?.smartlinkUrl ?? placement?.scriptUrl;
-      final source = catalogKey == null
-          ? 'none'
-          : remoteConfig.getValue(catalogKey).source.name;
-      final interstitialEnabled =
-          provider.adsterraPlaybackAds.forStage(PlaybackAdStage.beforeLoader) !=
-              null;
-      debugPrint('[PlaybackAdConfig] selected=${network?.name ?? 'none'} '
-          'catalog=${catalogKey ?? 'none'} source=$source '
-          'popupFrequencyMinutes=${provider.playbackPopupFrequencyMinutes} '
-          'tvNetwork=${provider.tvPlaybackPopunderNetwork?.name ?? 'none'} '
-          'tvPopupFrequencyMinutes=${provider.tvPlaybackPopupFrequencyMinutes} '
-          'triggers=${{
-        for (final stage in PlaybackAdStage.triggers)
-          stage.name: provider.popupTrigger(stage)
-      }} '
-          'enabled=$enabled interstitialEnabled=$interstitialEnabled '
-          'mode=${placement?.mode ?? 'disabled/invalid'} '
-          'target=${target == null ? 'none' : '${target.origin}${target.path}'}');
-    }
-    provider.setVastPrerollConfig(VastPrerollConfig.parse(
-      remoteConfig.getString(vastPrerollKey),
-      enabled: _remoteBool(remoteConfig, vastPrerollEnabledKey),
-      networks:
-          AdNetwork.parseList(remoteConfig.getString(vastPrerollNetworkKey)),
-    ));
-    if (kDebugMode) {
-      final preroll = provider.vastPreroll;
-      debugPrint('[VAST] config enabled=${preroll.enabled} order='
-          '${preroll.sources.map((source) => source.network.name).join(',')}');
-    }
+    provider.setTvPlaybackPopunderNetwork(null, followMobile: false);
+    provider.setTvPlaybackPopupFrequencyMinutes(null);
+    provider.setVastPrerollConfig(const VastPrerollConfig(enabled: false));
     final parsedInstances = parseApiInstances(instancesRaw);
     final legacyUrl = remoteConfig.getString(flixquestApiUrlKey).trim();
     provider.setFlixquestApiConfig(

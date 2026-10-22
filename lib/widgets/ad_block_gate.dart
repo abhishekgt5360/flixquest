@@ -40,75 +40,16 @@ class AdBlockGate {
   void invalidate() => _cache.invalidate();
   void addListener(VoidCallback listener) => _cache.addListener(listener);
   void removeListener(VoidCallback listener) => _cache.removeListener(listener);
-  bool blocksPlayback(AppDependencyProvider provider) =>
-      provider.adBlockGateEnabled &&
-      _cache.isBlocked(_key(provider, _hosts(provider)));
+  bool blocksPlayback(AppDependencyProvider provider) => false;
 
-  Set<String> _hosts(AppDependencyProvider provider) => {
-        ...AdBlockDetector.dnsProbeHosts,
-        ...AdBlockDetector.adHosts(provider),
-      };
+  Set<String> _hosts(AppDependencyProvider provider) => const {};
 
-  Object _key(AppDependencyProvider provider, Set<String> hosts) => (
-        provider,
-        provider.adBlockGateEnabled,
-        (hosts.toList()..sort()).join(',')
-      );
-
-  Future<bool> _scan(BuildContext context, Set<String> hosts) =>
-      _detector.isBlocking(hosts, additionalChecks: [
-        for (final check in _additionalChecks) () => check(context),
-      ]);
-
-  Future<void> warmUp(BuildContext context) async {
-    final provider = context.read<AppDependencyProvider?>();
-    if (provider == null || !provider.adBlockGateEnabled) {
-      invalidate();
-      return;
-    }
-    final hosts = _hosts(provider);
-    await _cache.warm(_key(provider, hosts), () => _scan(context, hosts));
-  }
+  Future<void> warmUp(BuildContext context) async {}
 
   /// False when the viewer backs out; the loader then closes.
   Future<bool> allowPlayback(BuildContext context,
-      {bool download = false, bool television = false}) async {
-    final provider = context.read<AppDependencyProvider?>();
-    if (provider == null || !provider.adBlockGateEnabled) {
-      invalidate();
-      debugPrint('[AdBlockGate] skipped: gate disabled or provider missing');
-      return true;
-    }
-    final tv = television || DevicePresentationService.instance.isTelevision;
-    final analytics = context.read<SettingsProvider?>()?.analytics;
-    var asked = false;
-    while (provider.adBlockGateEnabled) {
-      final hosts = _hosts(provider);
-      final watch = Stopwatch()..start();
-      final blocked = await _cache.check(
-          _key(provider, hosts), () => _scan(context, hosts));
-      debugPrint('[AdBlockGate] wait=${watch.elapsedMilliseconds}ms '
-          'result=${blocked == null ? 'pending; allow' : blocked ? 'blocked' : 'allow'}');
-      if (!context.mounted) return false;
-      if (!provider.adBlockGateEnabled || blocked != true) break;
-      analytics?.trackAdBlockerGate(
-          outcome: 'detected', download: download, television: tv);
-      final retry = await _ask(context, television: tv, again: asked);
-      if (!context.mounted) return false;
-      if (retry != true) {
-        analytics?.trackAdBlockerGate(
-            outcome: 'cancelled', download: download, television: tv);
-        return false;
-      }
-      asked = true;
-      invalidate();
-    }
-    if (asked) {
-      analytics?.trackAdBlockerGate(
-          outcome: 'cleared', download: download, television: tv);
-    }
-    return context.mounted;
-  }
+      {bool download = false, bool television = false}) async =>
+      true;
 
   /// True to check again, after the viewer turned the blocker off.
   Future<bool?> _ask(BuildContext context,

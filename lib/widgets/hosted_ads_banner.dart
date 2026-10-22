@@ -64,60 +64,7 @@ class _RemoteHostedAdsBannerState extends State<RemoteHostedAdsBanner> {
       HostedAdsRepository.instance.load(dependencies.flixquestAPIURL);
 
   @override
-  Widget build(BuildContext context) {
-    final dependencies = context.watch<AppDependencyProvider?>();
-    if (dependencies == null || dependencies.bannerAdNetwork == 'none') {
-      return const SizedBox.shrink();
-    }
-    final television = DevicePresentationService.instance.isTelevision;
-    final hostedActive = dependencies.isHostedBannerActive;
-    // Both sources can show on Android TV; their widgets stay display-only.
-    final networkActive = dependencies.bannerAdsForPlacement(widget.placement,
-            television: television) !=
-        null;
-    if (!hostedActive) return _network(dependencies, widget.padding);
-    final ads = _ads ??= _load(dependencies);
-    final priority = dependencies.hostedBannerMode == HostedBannerMode.priority;
-
-    return FutureBuilder<List<BannerAd>>(
-      future: ads,
-      builder: (context, snapshot) {
-        final settled = snapshot.connectionState == ConnectionState.done;
-        final shown = (snapshot.data ?? const <BannerAd>[])
-            .where(
-              (ad) =>
-                  ad.appliesTo(widget.placement, television: television) &&
-                  dependencies.isBannerEnabled(ad.key, widget.placement),
-            )
-            .toList(growable: false);
-        final hosted = shown.isEmpty
-            ? null
-            : HostedAdsBanner(
-                ads: shown,
-                variant: widget.variant,
-                interactive: !television,
-                padding: widget.padding,
-              );
-        // In priority mode the network banner waits for the answer, so a slot
-        // that a hosted ad takes never loads (and bills) a banner underneath.
-        final showNetwork =
-            networkActive && (!priority || (settled && hosted == null));
-        if (hosted == null && !showNetwork) return const SizedBox.shrink();
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            if (hosted != null) hosted,
-            if (showNetwork)
-              _network(
-                dependencies,
-                hosted == null ? widget.padding : _tucked(widget.padding),
-              ),
-          ],
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => const SizedBox.shrink();
 
   /// Keeps the network banner close under a hosted banner it shares a slot
   /// with, instead of doubling the gap.
@@ -199,66 +146,7 @@ class HostedAdsBanner extends StatelessWidget {
   final EdgeInsetsGeometry padding;
 
   @override
-  Widget build(BuildContext context) {
-    final validAds = ads
-        .where((ad) => ad.imageUrl.isNotEmpty && ad.targetUrl.isNotEmpty)
-        .toList(growable: false);
-    if (validAds.isEmpty) return const SizedBox.shrink();
-    var shownAds = validAds;
-    if (variant.isTall) {
-      final preferred =
-          validAds.where((ad) => ad.shape != 'wide').toList(growable: false);
-      if (preferred.isNotEmpty) shownAds = preferred;
-    }
-    final dependencies = context.watch<AppDependencyProvider>();
-    final config = dependencies.bannerConfigFor(shownAds.first.key);
-    final shape = config.shape ?? shownAds.first.shape;
-    final aspectRatio = config.aspectRatio ?? shownAds.first.aspectRatio;
-    var ratio = shape == 'square'
-        ? 1.0
-        : shape == 'portrait'
-            ? .75
-            : shape == 'wide'
-                ? 3.2
-                : aspectRatio;
-    if (variant.isTall && config.shape == null && config.aspectRatio == null) {
-      ratio = shape == 'square' || shape == 'portrait' ? ratio : 2.2;
-    }
-
-    // The banner keeps the image's own shape, so nothing is cropped, and
-    // sits centred. A remotely set width or height only caps its size.
-    final maxWidth = config.width ?? _maxWidth;
-    final maxHeight = config.height ?? (variant.isTall ? 420.0 : 320.0);
-    Widget banner = _AdImageRatio(
-      imageUrl: shownAds.first.imageUrl,
-      fallback: ratio,
-      builder: (context, imageRatio) => LayoutBuilder(
-        builder: (context, constraints) {
-          var width = math.min(constraints.maxWidth, maxWidth);
-          var height = width / imageRatio;
-          if (height > maxHeight) {
-            height = maxHeight;
-            width = height * imageRatio;
-          }
-          return Center(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(5),
-              child: _CachedAdCarousel(
-                ads: shownAds,
-                width: width,
-                height: height,
-                interactive: interactive,
-              ),
-            ),
-          );
-        },
-      ),
-    );
-    if (!interactive) {
-      banner = ExcludeFocus(child: IgnorePointer(child: banner));
-    }
-    return Padding(padding: padding, child: banner);
-  }
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 /// Reads the ad image's own width-to-height ratio, so a banner sized from it

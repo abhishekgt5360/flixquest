@@ -57,38 +57,15 @@ class AdsterraPlaybackAdsService {
 
   /// Lets route builders omit the waiting frame when no interstitial can run.
   bool needsBeforeLoader(BuildContext context, {bool television = false}) =>
-      _eligible(context, television: television) &&
-      context
-              .read<AppDependencyProvider?>()
-              ?.adsterraPlaybackAds
-              .forStage(PlaybackAdStage.beforeLoader) !=
-          null;
+      false;
 
   bool _eligible(BuildContext context,
-      {bool download = false, bool television = false}) {
-    final state = WidgetsBinding.instance.lifecycleState;
-    return context.mounted &&
-        (state == null || state == AppLifecycleState.resumed) &&
-        !download &&
-        !television &&
-        !DevicePresentationService.instance.isTelevision &&
-        !kIsWeb &&
-        const {TargetPlatform.android, TargetPlatform.iOS}
-            .contains(defaultTargetPlatform);
-  }
+      {bool download = false, bool television = false}) => false;
 
   /// The ad blocker check runs first, so a blocked viewer is not kept
   /// waiting on an interstitial that cannot load.
   Future<bool> beforeLoader(BuildContext context,
-      {bool download = false, bool television = false}) async {
-    if (!await AdBlockGate.instance.allowPlayback(context,
-            download: download, television: television) ||
-        !context.mounted) {
-      return false;
-    }
-    return show(context, PlaybackAdStage.beforeLoader,
-        download: download, television: television);
-  }
+      {bool download = false, bool television = false}) async => true;
 
   /// A loader the player itself started passes [PlaybackAdStage.episodeSwitch]
   /// or [PlaybackAdStage.movieSwitch] as [stage].
@@ -96,19 +73,14 @@ class AdsterraPlaybackAdsService {
           {bool download = false,
           bool television = false,
           PlaybackAdPreload? preload,
-          PlaybackAdStage stage = PlaybackAdStage.streamFound}) =>
-      show(context, stage,
-          download: download, television: television, preload: preload);
+          PlaybackAdStage stage = PlaybackAdStage.streamFound}) async => true;
 
   /// Call from a phone player just before it pops itself.
   void afterPlayerExit(BuildContext playerContext,
-          {required Duration watched}) =>
-      _afterRouteGone(
-          playerContext, (context) => playerExit(context, watched: watched));
+          {required Duration watched}) {}
 
   /// Call from a loader that queued a download, just before it pops itself.
-  void afterDownloadQueued(BuildContext loaderContext) => _afterRouteGone(
-      loaderContext, (context) => show(context, PlaybackAdStage.download));
+  void afterDownloadQueued(BuildContext loaderContext) {}
 
   /// The popup opens over the screen the viewer returns to once the route
   /// around [routeContext] has gone, so Back itself is never held.
@@ -141,88 +113,13 @@ class AdsterraPlaybackAdsService {
   /// After the viewer leaves the player, once its route has popped. Only a
   /// real watch counts: an exit after a failed or bounced stream shows nothing.
   Future<void> playerExit(BuildContext context,
-      {required Duration watched}) async {
-    if (!context.mounted) return;
-    final exit = context
-        .read<AppDependencyProvider?>()
-        ?.popupTrigger(PlaybackAdStage.playerExit);
-    if (exit == null || !exit.enabled) {
-      _logSkip(PlaybackAdStage.playerExit, 'disabled');
-      await _settleOwedPlayerExit();
-      return;
-    }
-    // A popup earned in an earlier player of this session (before an
-    // in-player episode or movie switch) is still owed.
-    if (watched < exit.minWatch && !_playerExitOwed) {
-      _logSkip(PlaybackAdStage.playerExit,
-          'watched=${watched.inSeconds}s min=${exit.minWatch.inSeconds}s');
-      return;
-    }
-    await _showOwedPlayerExit(context);
-  }
+      {required Duration watched}) async {}
 
-  /// Players report their content watch time as it grows. Once it earns the
-  /// player-exit popup, that is saved at once, before the viewer can close
-  /// the app instead of leaving the player.
-  void notePlayerWatch(BuildContext context, Duration watched) {
-    if (_playerExitOwed || !context.mounted) return;
-    final provider = context.read<AppDependencyProvider?>();
-    final exit = provider?.popupTrigger(PlaybackAdStage.playerExit);
-    if (provider == null ||
-        exit == null ||
-        !exit.enabled ||
-        !provider.playerExitRelaunch.enabled ||
-        watched < exit.minWatch ||
-        DevicePresentationService.instance.isTelevision) {
-      return;
-    }
-    _playerExitOwed = true;
-    final owedAt = _now();
-    debugPrint('[AdsterraPlayback] playerExit: owed from '
-        '${owedAt.toIso8601String()} watched=${watched.inSeconds}s');
-    unawaited(_writeOwedPlayerExit(owedAt));
-  }
+  /// Players report their content watch time as it grows.
+  void notePlayerWatch(BuildContext context, Duration watched) {}
 
-  /// On launch, once the first screen is up: opens a player-exit popup owed
-  /// by a session that ended in the player. It opens only over that first
-  /// screen, within [owedPopupConfigWait], under the trigger's own switch and
-  /// interval, and is dropped once older than
-  /// `player_exit_popup_relaunch_max_hours`. The way on waits for the ad as
-  /// for any popup; an ad that cannot load or fill lets the viewer in.
-  Future<void> showOwedPlayerExitOnLaunch(BuildContext context) async {
-    if (_launchChecked || !context.mounted) return;
-    _launchChecked = true;
-    final provider = context.read<AppDependencyProvider?>();
-    if (provider == null) return;
-    final host = ModalRoute.of(context);
-    int? owedAtMs;
-    try {
-      owedAtMs = (await _preferences()).getInt(_owedPlayerExitKey);
-    } catch (error) {
-      debugPrint('[AdsterraPlayback] owed popup unavailable ($error)');
-      return;
-    }
-    if (owedAtMs == null) return;
-    if (!await _configApplied(provider)) {
-      _logSkip(PlaybackAdStage.playerExit,
-          'owed popup: Remote Config not ready; kept for a later launch');
-      return;
-    }
-    if (!context.mounted || (host != null && !host.isCurrent)) return;
-    final relaunch = provider.playerExitRelaunch;
-    final age =
-        _now().difference(DateTime.fromMillisecondsSinceEpoch(owedAtMs));
-    if (!relaunch.enabled || age.isNegative || age > relaunch.maxAge) {
-      _logSkip(PlaybackAdStage.playerExit,
-          'owed popup dropped relaunch=${relaunch.enabled} age=${age.inMinutes}m');
-      await _settleOwedPlayerExit();
-      return;
-    }
-    _playerExitOwed = true;
-    debugPrint('[AdsterraPlayback] playerExit: showing popup owed for '
-        '${age.inMinutes}m on launch');
-    await _showOwedPlayerExit(context);
-  }
+  /// On launch, once the first screen is up: opens a player-exit popup owed.
+  Future<void> showOwedPlayerExitOnLaunch(BuildContext context) async {}
 
   /// Settles the owed popup once the attempt finishes in the app: shown,
   /// skipped by its switch or interval, or unfilled. An attempt cut short by
@@ -282,188 +179,14 @@ class AdsterraPlaybackAdsService {
   PlaybackAdPreload? preloadStreamFound(BuildContext context,
       {bool download = false,
       bool television = false,
-      PlaybackAdStage stage = PlaybackAdStage.streamFound}) {
-    final lifecycle = WidgetsBinding.instance.lifecycleState;
-    if (!context.mounted ||
-        download ||
-        _busy ||
-        (lifecycle != null && lifecycle != AppLifecycleState.resumed) ||
-        kIsWeb ||
-        !const {TargetPlatform.android, TargetPlatform.iOS}
-            .contains(defaultTargetPlatform)) {
-      return null;
-    }
-    final provider = context.read<AppDependencyProvider?>();
-    final selection = provider?.playbackAdsSelection;
-    final tv = television || DevicePresentationService.instance.isTelevision;
-    if (provider == null || selection == null) return null;
-    final resolved = _resolveStage(provider, stage, tv);
-    if (_popupCoolingDown(resolved, _frequencyFor(provider, resolved, tv))) {
-      return null;
-    }
-    final placement = _placementFor(
-        provider, resolved, tv ? selection.tvNetwork : selection.network, tv);
-    if (placement == null) return null;
-    late final PlaybackAdPreload preload;
-    void onConfigChanged() {
-      if (provider.playbackAdsSelection != selection) preload.dispose();
-    }
-
-    provider.addListener(onConfigChanged);
-    preload = PlaybackAdPreload(
-      placement: placement,
-      onReleased: () => provider.removeListener(onConfigChanged),
-    );
-    return preload;
-  }
+      PlaybackAdStage stage = PlaybackAdStage.streamFound}) =>
+      null;
 
   Future<bool> show(BuildContext context, PlaybackAdStage requested,
       {bool download = false,
       bool television = false,
-      PlaybackAdPreload? preload}) async {
-    if (!context.mounted) {
-      _logSkip(requested, 'playback screen disposed');
-      return false;
-    }
-    final lifecycle = WidgetsBinding.instance.lifecycleState;
-    if (lifecycle != null && lifecycle != AppLifecycleState.resumed) {
-      _logSkip(requested, 'app lifecycle=${lifecycle.name}');
-      return true;
-    }
-    final tv = television || DevicePresentationService.instance.isTelevision;
-    final provider = context.read<AppDependencyProvider?>();
-    final stage = _resolveStage(provider, requested, tv);
-    if (download ||
-        (tv && stage != PlaybackAdStage.streamFound) ||
-        kIsWeb ||
-        !const {TargetPlatform.android, TargetPlatform.iOS}
-            .contains(defaultTargetPlatform)) {
-      _logSkip(stage,
-          'download=$download television=$tv platform=${defaultTargetPlatform.name} web=$kIsWeb');
-      return true;
-    }
-    if (_busy) {
-      _logSkip(stage, 'another playback ad is active');
-      return false;
-    }
-    final selection = provider?.playbackAdsSelection;
-    final network = stage == PlaybackAdStage.beforeLoader
-        ? AdNetwork.adsterra
-        : tv
-            ? selection?.tvNetwork
-            : selection?.network;
-    final config = selection?.adsterra;
-    var placement =
-        provider == null ? null : _placementFor(provider, stage, network, tv);
-    if (provider == null || placement == null) {
-      _logSkip(stage,
-          'network=${network?.name ?? 'none'} television=$tv trigger=${provider?.popupTrigger(stage)} adsterraEnabled=${config?.enabled ?? false} popupEnabled=${selection?.popunders[network]?.enabled ?? false}; stage disabled or invalid/missing ${tv ? 'tv_popunder' : 'config'}');
-      return true;
-    }
-    _busy = true;
-    final host = ModalRoute.of(context);
-    final trigger = provider.popupTrigger(stage);
-    bool configChanged() =>
-        provider.playbackAdsSelection != selection ||
-        provider.popupTrigger(stage) != trigger;
-    final frequencyMinutes = _frequencyFor(provider, stage, tv);
-    try {
-      if (stage != PlaybackAdStage.beforeLoader && frequencyMinutes > 0) {
-        await _loadPopupHistory(stage);
-        // A config update or navigation while reading storage must not hand
-        // playback to an obsolete loader, even when the popup would be skipped.
-        if (!context.mounted) return false;
-        if (configChanged() || (host != null && !host.isCurrent)) {
-          return false;
-        }
-        final state = WidgetsBinding.instance.lifecycleState;
-        if (state != null && state != AppLifecycleState.resumed) return true;
-        if (_popupCoolingDown(stage, frequencyMinutes)) {
-          preload?.dispose();
-          _logSkip(stage, 'popup frequency=$frequencyMinutes minutes');
-          return true;
-        }
-      }
-      String? variantId;
-      final experiment = stage == PlaybackAdStage.streamFound &&
-              network == AdNetwork.adsterra &&
-              !tv
-          ? config?.streamFoundExperiment
-          : null;
-      if (experiment != null) {
-        final selected = await _nextVariant(experiment);
-        placement = selected.placement;
-        variantId = '${experiment.id}/${selected.id}';
-      }
-      // Preference writes may yield to a disable, a navigation, or backgrounding.
-      if (!context.mounted) return false;
-      if (configChanged() || (host != null && !host.isCurrent)) {
-        return false;
-      }
-      final state = WidgetsBinding.instance.lifecycleState;
-      if (state != null && state != AppLifecycleState.resumed) return true;
-      final selectedPlacement = placement;
-      // An empty view also works for another arm of this same experiment;
-      // preparation never selects or requests that arm's ad.
-      final matches = preload?.placement == selectedPlacement ||
-          experiment?.variants
-                  .any((variant) => variant.placement == preload?.placement) ==
-              true;
-      final prepared =
-          matches && preload?.unavailable == false ? preload : null;
-      // Expired or changed preparation must not suppress an eligible ad.
-      if (prepared == null) preload?.dispose();
-      prepared?.claim();
-      final navigator = Navigator.of(context);
-      final route = MaterialPageRoute<void>(
-        settings: RouteSettings(
-            name: '/${selectedPlacement.network.name}/${stage.name}'),
-        builder: (_) => AdsterraPlaybackAdScreen(
-          placement: selectedPlacement,
-          stage: stage,
-          storeLauncher: storeLauncher,
-          browserLauncher: browserLauncher,
-          television: tv,
-          preload: prepared,
-          continueTap: continueTap,
-          onAdShown: stage == PlaybackAdStage.beforeLoader
-              ? null
-              : () {
-                  unawaited(_recordPopupShown(stage));
-                  // Seen: closing the app now no longer owes it again.
-                  if (stage == PlaybackAdStage.playerExit) {
-                    unawaited(_settleOwedPlayerExit());
-                  }
-                },
-        ),
-      );
-      // Compare the catalogs and network, not the chosen arm: unrelated
-      // provider updates must not close a selected B/C variant.
-      void onConfigChanged() {
-        if (configChanged() && route.isActive) {
-          navigator.removeRoute(route);
-        }
-      }
-
-      debugPrint(
-          '[AdsterraPlayback] ${stage.name}: presenting ${selectedPlacement.network.name} ${selectedPlacement.mode} variant=${variantId ?? 'legacy'} television=$tv preloaded=${prepared != null}');
-      provider.addListener(onConfigChanged);
-      try {
-        await navigator.push(route);
-      } finally {
-        provider.removeListener(onConfigChanged);
-      }
-      // The ad closes when FlixQuest is backgrounded (for example by a Play
-      // Store hand-off). Do not hand off to the player until it resumes.
-      if (!await _waitForForeground()) return false;
-      return context.mounted && (host == null || host.isCurrent);
-    } catch (error) {
-      debugPrint('[AdsterraPlayback] ${stage.name}: unavailable ($error)');
-      return context.mounted && (host == null || host.isCurrent);
-    } finally {
-      _busy = false;
-    }
-  }
+      PlaybackAdPreload? preload}) async =>
+      true;
 
   /// Episode and movie switches keep the stream-found popup on TV, and on
   /// phones until their own switch is published.

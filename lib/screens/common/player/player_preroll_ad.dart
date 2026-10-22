@@ -35,22 +35,8 @@ class PlayerPrerollAd {
 
   /// The first ad from the networks `vast_preroll_network` lists.
   Future<VastPreroll?> load(VastPrerollConfig config,
-      {bool Function()? cancelled}) async {
-    final sources = config.sourcesFor(television: television);
-    if (sources.isEmpty) return null;
-    try {
-      final client = _client ??= VastClient();
-      return await client.loadPreroll(
-        sources,
-        maxHeight: television ? 1080 : 720,
-        maxBitrate: television ? 8000 : 2500,
-        cancelled: cancelled,
-      );
-    } catch (error) {
-      debugPrint('[VAST] pre-roll unavailable: $error');
-      return null;
-    }
-  }
+      {bool Function()? cancelled}) async =>
+      null;
 
   static BetterPlayerDataSource dataSource(VastMediaFile media) {
     final type = media.type.toLowerCase();
