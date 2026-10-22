@@ -88,7 +88,7 @@ android {
    
    buildTypes {
        release {
-           signingConfig signingConfigs.release
+           signingConfig (signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug)
            shrinkResources true
            minifyEnabled true
        }
