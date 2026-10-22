@@ -742,8 +742,15 @@ List<Widget> homeRows(
 }) {
   final kinds = filter.kinds;
   final both = kinds.length > 1;
-  String titled(MediaKind kind, String movies, String series) =>
-      tr(kind == MediaKind.movie ? movies : series);
+  String titled(MediaKind kind, String movies, String series) {
+    final key = kind == MediaKind.movie ? movies : series;
+    final text = tr(key);
+    if (text == key) {
+      if (key == 'indian_movies') return 'Indian Cinema & Movies';
+      if (key == 'indian_series') return 'Indian Web Series';
+    }
+    return text;
+  }
 
   // The rows that share the first screens; keep them from repeating the
   // same few titles.
@@ -844,6 +851,14 @@ List<Widget> homeRows(
           HomeList.popular,
           titled(kind, 'popular_movies', 'popular_series'),
           feed.of(kind).popular,
+        ),
+    for (final kind in kinds)
+      if (feed.of(kind).indianCinema.isNotEmpty)
+        listRow(
+          kind,
+          HomeList.indianCinema,
+          titled(kind, 'indian_movies', 'indian_series'),
+          feed.of(kind).indianCinema,
         ),
     for (final kind in kinds)
       for (final shelf in feed.of(kind).serviceShelves)

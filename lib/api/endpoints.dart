@@ -161,6 +161,24 @@ class Endpoints {
     return '$TMDB_API_BASE_URL/person/$personId?api_key=$TMDB_API_KEY&language=$l&append_to_response=movie_credits';
   }
 
+  static String indianMoviesUrl(int page, String l) {
+    return '$TMDB_API_BASE_URL'
+        '/discover/movie?api_key='
+        '$TMDB_API_KEY'
+        '&language=$l&sort_by=popularity'
+        '.desc&page=$page'
+        '&with_origin_country=IN';
+  }
+
+  static String indianTVShowsUrl(int page, String l) {
+    return '$TMDB_API_BASE_URL'
+        '/discover/tv?api_key='
+        '$TMDB_API_KEY'
+        '&language=$l&sort_by=popularity'
+        '.desc&page=$page'
+        '&with_origin_country=IN';
+  }
+
   static watchProvidersMovies(int providerId, int page, String l) {
     return '$TMDB_API_BASE_URL'
         '/discover/movie?api_key='
@@ -168,7 +186,7 @@ class Endpoints {
         '&language=$l&sort_by=popularity'
         '.desc&include_video=false&page=$page'
         '&with_watch_providers=$providerId'
-        '&watch_region=US';
+        '&watch_region=IN';
   }
 
   static watchProvidersTVShows(int providerId, int page, String l) {
@@ -178,7 +196,7 @@ class Endpoints {
         '&language=$l&sort_by=popularity'
         '.desc&include_adult=false&page=$page'
         '&with_watch_providers=$providerId'
-        '&watch_region=US';
+        '&watch_region=IN';
   }
 
   static String getImages(int id) {

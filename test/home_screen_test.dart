@@ -57,6 +57,7 @@ class _FakeSource implements HomeFeedSource {
       HomeList.topRated => <int>[base + 6],
       HomeList.newReleases => <int>[base + 7],
       HomeList.upcoming => <int>[base + 8],
+      HomeList.indianCinema => <int>[base + 9],
     };
     return kind == MediaKind.movie ? _movies(ids) : _series(ids);
   }

@@ -36,6 +36,9 @@ enum HomeList {
 
   /// Movies still to come. Series have none.
   upcoming,
+
+  /// Indian Cinema & Shows.
+  indianCinema,
 }
 
 /// Where Home's lists come from, so tests can feed it their own.
@@ -93,6 +96,9 @@ class CatalogHomeFeedSource implements HomeFeedSource {
           : Endpoints.onTheAirUrl(language),
       HomeList.upcoming =>
         isMovie ? Endpoints.upcomingMoviesUrl(language) : null,
+      HomeList.indianCinema => isMovie
+          ? Endpoints.indianMoviesUrl(1, language)
+          : Endpoints.indianTVShowsUrl(1, language),
     };
   }
 
@@ -176,6 +182,7 @@ class KindRows {
     this.newReleases = const <MediaItem>[],
     this.topRated = const <MediaItem>[],
     this.upcoming = const <MediaItem>[],
+    this.indianCinema = const <MediaItem>[],
     this.serviceShelves = const <ServiceShelf>[],
   });
 
@@ -191,10 +198,13 @@ class KindRows {
 
   /// Movies still to come; series have none.
   final List<MediaItem> upcoming;
+
+  /// Indian cinema and series.
+  final List<MediaItem> indianCinema;
   final List<ServiceShelf> serviceShelves;
 
   MediaItem? get first =>
-      topTen.firstOrNull ?? trending.firstOrNull ?? popular.firstOrNull;
+      topTen.firstOrNull ?? trending.firstOrNull ?? popular.firstOrNull ?? indianCinema.firstOrNull;
 
   bool get isEmpty =>
       topTen.isEmpty &&
@@ -203,6 +213,7 @@ class KindRows {
       newReleases.isEmpty &&
       topRated.isEmpty &&
       upcoming.isEmpty &&
+      indianCinema.isEmpty &&
       serviceShelves.every((shelf) => shelf.items.isEmpty);
 }
 
@@ -390,6 +401,7 @@ class HomeFeedController {
       list(HomeList.newReleases),
       list(HomeList.topRated),
       list(HomeList.upcoming),
+      list(HomeList.indianCinema),
     ]);
     // Top 10, Trending and New releases lead the page; keep them from
     // showing the same few titles over and over.
@@ -406,6 +418,7 @@ class HomeFeedController {
         newReleases: _row(lead[2]),
         topRated: _row(lists[4]),
         upcoming: _row(lists[5]),
+        indianCinema: _row(lists[6]),
         serviceShelves: (await shelves).whereType<ServiceShelf>().toList(
               growable: false,
             ),
