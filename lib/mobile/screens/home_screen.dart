@@ -682,6 +682,8 @@ class _HomeHeader extends StatelessWidget {
                               ),
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          const _ProxyIndicator(),
                         ],
                       ),
                     ),
@@ -706,6 +708,43 @@ class _HomeHeader extends StatelessWidget {
           ),
           FilterChips(chips: chips),
         ],
+      ),
+    );
+  }
+}
+
+class _ProxyIndicator extends StatelessWidget {
+  const _ProxyIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    final isProxy = context.select<SettingsProvider, bool>(
+      (settings) => settings.enableProxy,
+    );
+    final color = isProxy ? const Color(0xFFEF4444) : const Color(0xFF10B981);
+    final bgColor = isProxy ? const Color(0x22EF4444) : const Color(0x2210B981);
+
+    return ExcludeSemantics(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: color,
+            width: 1.2,
+          ),
+        ),
+        child: Text(
+          'Proxy',
+          textScaler: TextScaler.noScaling,
+          style: TextStyle(
+            color: color,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
       ),
     );
   }
