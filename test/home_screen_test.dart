@@ -253,6 +253,8 @@ void main() {
       'top_10_series_today',
       'trending_movies_week',
       'trending_series_week',
+      'Indian Cinema & Movies',
+      'Indian Web Series',
       'ad',
       'my_list',
       'new_movies',
