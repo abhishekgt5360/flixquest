@@ -343,11 +343,11 @@ class _HomeScreenState extends State<HomeScreen>
     if (picked == null || !mounted) return;
     final (kind, genre) = picked;
     if (genre.genreID == -1001) {
-      _openList(MediaKind.movie, HomeList.indianCinema, titled(MediaKind.movie, 'indian_movies', 'indian_series'));
+      _openList(MediaKind.movie, HomeList.indianCinema, tr('indian_movies'));
       return;
     }
     if (genre.genreID == -1002) {
-      _openList(MediaKind.series, HomeList.indianCinema, titled(MediaKind.series, 'indian_movies', 'indian_series'));
+      _openList(MediaKind.series, HomeList.indianCinema, tr('indian_series'));
       return;
     }
     await openGenreCollection(context, kind, genre);
