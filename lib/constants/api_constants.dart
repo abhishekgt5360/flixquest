@@ -10,8 +10,12 @@ String? _remoteTmdbApiKey;
 /// Initially falls back to `dotenv.env['TMDB_API_KEY']` (from the local `.env`).
 /// If a non-empty key is fetched from Firebase Remote Config (`tmdb_api_key`),
 /// it overrides this value at runtime.
-String get TMDB_API_KEY =>
-    _remoteTmdbApiKey ?? dotenv.env['TMDB_API_KEY'] ?? '';
+String get TMDB_API_KEY {
+  final envKey =
+      dotenv.isInitialized ? dotenv.env['TMDB_API_KEY']?.trim() : null;
+  if (envKey != null && envKey.isNotEmpty) return envKey;
+  return _remoteTmdbApiKey ?? '';
+}
 
 set TMDB_API_KEY(String value) {
   final trimmed = value.trim();
