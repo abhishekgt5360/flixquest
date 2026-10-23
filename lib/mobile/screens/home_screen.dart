@@ -342,6 +342,14 @@ class _HomeScreenState extends State<HomeScreen>
     );
     if (picked == null || !mounted) return;
     final (kind, genre) = picked;
+    if (genre.genreID == -1001) {
+      _openList(MediaKind.movie, HomeList.indianCinema, titled(MediaKind.movie, 'indian_movies', 'indian_series'));
+      return;
+    }
+    if (genre.genreID == -1002) {
+      _openList(MediaKind.series, HomeList.indianCinema, titled(MediaKind.series, 'indian_movies', 'indian_series'));
+      return;
+    }
     await openGenreCollection(context, kind, genre);
   }
 
@@ -824,6 +832,14 @@ List<Widget> homeRows(
           titled(kind, 'trending_movies_week', 'trending_series_week'),
           trending[kind]!,
         ),
+    for (final kind in kinds)
+      if (feed.of(kind).indianCinema.isNotEmpty)
+        listRow(
+          kind,
+          HomeList.indianCinema,
+          titled(kind, 'indian_movies', 'indian_series'),
+          feed.of(kind).indianCinema,
+        ),
     adSlot('trending', tall: true),
     if (shownMyList.isNotEmpty)
       PosterRow(
@@ -851,14 +867,6 @@ List<Widget> homeRows(
           HomeList.popular,
           titled(kind, 'popular_movies', 'popular_series'),
           feed.of(kind).popular,
-        ),
-    for (final kind in kinds)
-      if (feed.of(kind).indianCinema.isNotEmpty)
-        listRow(
-          kind,
-          HomeList.indianCinema,
-          titled(kind, 'indian_movies', 'indian_series'),
-          feed.of(kind).indianCinema,
         ),
     for (final kind in kinds)
       for (final shelf in feed.of(kind).serviceShelves)

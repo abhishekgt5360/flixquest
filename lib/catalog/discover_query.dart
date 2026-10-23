@@ -142,7 +142,7 @@ class DiscoverQuery {
       'api_key': TMDB_API_KEY,
       'language': language,
       'sort_by': sorts[sort].value,
-      'watch_region': 'US',
+      'watch_region': 'IN',
       if (movie) 'include_adult': '$includeAdult',
       if (movie) 'primary_release_year': year else 'first_air_date_year': year,
       if (!movie) 'with_status': seriesStatuses[status].value,

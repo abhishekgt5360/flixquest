@@ -162,21 +162,17 @@ class Endpoints {
   }
 
   static String indianMoviesUrl(int page, String l) {
-    return '$TMDB_API_BASE_URL'
-        '/discover/movie?api_key='
-        '$TMDB_API_KEY'
-        '&language=$l&sort_by=popularity'
-        '.desc&page=$page'
-        '&with_origin_country=IN';
+    return '$TMDB_API_BASE_URL/discover/movie?api_key=$TMDB_API_KEY'
+        '&language=$l&sort_by=popularity.desc'
+        '&include_adult=false&include_video=false&page=$page'
+        '&with_original_language=hi%7Cte%7Cta%7Cml%7Ckn%7Cpa%7Cbn%7Cmr';
   }
 
   static String indianTVShowsUrl(int page, String l) {
-    return '$TMDB_API_BASE_URL'
-        '/discover/tv?api_key='
-        '$TMDB_API_KEY'
-        '&language=$l&sort_by=popularity'
-        '.desc&page=$page'
-        '&with_origin_country=IN';
+    return '$TMDB_API_BASE_URL/discover/tv?api_key=$TMDB_API_KEY'
+        '&language=$l&sort_by=popularity.desc'
+        '&include_adult=false&page=$page'
+        '&with_original_language=hi%7Cte%7Cta%7Cml%7Ckn%7Cpa%7Cbn%7Cmr';
   }
 
   static watchProvidersMovies(int providerId, int page, String l) {

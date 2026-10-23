@@ -34,6 +34,21 @@ Future<(MediaKind, Genres)?> showGenreSheet(
           bottom: MediaQuery.paddingOf(context).bottom + AppSpace.lg,
         ),
         children: <Widget>[
+          _Heading(tr('featured_catalogues')),
+          _GenreTile(
+            kind: MediaKind.movie,
+            genre: Genres(
+              genreID: -1001,
+              genreName: tr('indian_movies'),
+            ),
+          ),
+          _GenreTile(
+            kind: MediaKind.series,
+            genre: Genres(
+              genreID: -1002,
+              genreName: tr('indian_series'),
+            ),
+          ),
           if (movieGenres.isNotEmpty) ...<Widget>[
             _Heading(tr('movie_genres')),
             for (final genre in movieGenres)
